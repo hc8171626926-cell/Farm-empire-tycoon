@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Farm Empire Tycoon (Prototype)</title>
+<style>
+  :root{
+    --bg:#0b0d10; --card:#141820; --card2:#10141b; --muted:#9aa7b2;
+    --text:#e9eef2; --line:#273041; --btn:#2b3446; --btn2:#1e2634;
+    --good:#3ddc84; --bad:#ff5d5d; --gold:#f7c948;
+  }
+  *{box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Inter,Arial,sans-serif;}
+  body{margin:0; background:linear-gradient(180deg,#07080a,#0b0d10 35%,#07080a); color:var(--text);}
+  .app{max-width:420px; margin:0 auto; min-height:100vh; padding:14px 14px 20px;}
+  .topbar{
+    position:sticky; top:0; z-index:5;
+    background:rgba(11,13,16,.92); backdrop-filter: blur(10px);
+    padding:10px 0 12px; border-bottom:1px solid rgba(39,48,65,.55);
+  }
+  .row{display:flex; gap:10px; align-items:center; justify-content:space-between;}
+  .pill{background:rgba(20,24,32,.9); border:1px solid rgba(39,48,65,.8); padding:8px 10px; border-radius:12px; display:flex; gap:8px; align-items:center;}
+  .pill small{color:var(--muted); display:block; line-height:1.1}
+  .pill b{font-weight:700}
+  .title{font-size:18px; font-weight:800; letter-spacing:.2px;}
+  .sub{color:var(--muted); font-size:12px; margin-top:2px}
+  .screen{display:none; padding-top:14px;}
+  .screen.active{display:block;}
+  .card{
+    background:linear-gradient(180deg,rgba(20,24,32,.95),rgba(16,20,27,.95));
+    border:1px solid rgba(39,48,65,.8); border-radius:16px; padding:14px;
+  }
+  .grid{display:grid; gap:10px;}
+  .btn{
+    background:linear-gradient(180deg,var(--btn),var(--btn2));
+    border:1px solid rgba(39,48,65,.9); color:var(--text);
+    padding:12px 12px; border-radius:14px; font-weight:700;
+    display:flex; justify-content:space-between; align-items:center;
+    cursor:pointer; user-select:none;
+  }
+  .btn:active{transform:scale(.99); opacity:.92}
+  .btn.primary{border-color:rgba(247,201,72,.9)}
+  .btn.primary b{color:var(--gold)}
+  .btn.ghost{background:transparent}
+  .kpi{display:flex; gap:10px; flex-wrap:wrap}
+  .kpi .pill{flex:1; min-width:120px}
+
+  /* Map */
+  .mapWrap{display:flex; gap:10px; align-items:stretch}
+  .map{
+    position:relative; flex:1;
+    background:radial-gradient(120% 80% at 50% 20%, #203329 0%, #16241d 50%, #0f1713 100%);
+    border:1px solid rgba(39,48,65,.9); border-radius:16px; overflow:hidden;
+    min-height:560px; /* increased for 42 fields */
+  }
+  .river{
+    position:absolute; left:-20%; top:8%; width:160%; height:34%;
+    background:linear-gradient(180deg, rgba(50,140,210,.25), rgba(30,90,150,.25));
+    border-top:1px solid rgba(120,190,240,.18);
+    border-bottom:1px solid rgba(120,190,240,.14);
+    transform:rotate(-6deg);
+    filter:blur(.2px);
+  }
+  .road{
+    position:absolute; left:8%; top:54%; width:86%; height:10%;
+    border-top:2px dashed rgba(220,230,240,.18);
+    transform:rotate(2deg);
+  }
+  .field{
+    position:absolute; border-radius:10px;
+    border:1px solid rgba(255,255,255,.14);
+    background:linear-gradient(180deg, rgba(120,90,55,.75), rgba(95,70,45,.75));
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.22);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:900; color:rgba(255,255,255,.92);
+    cursor:pointer; user-select:none;
+  }
+  .field.forSale{background:linear-gradient(180deg, rgba(135,98,58,.70), rgba(92,68,44,.70));}
+  .field.owned{outline:2px solid rgba(61,220,132,.55)}
+  .field.planted{background:linear-gradient(180deg, rgba(70,120,70,.75), rgba(55,95,55,.75));}
+  .field.ready{background:linear-gradient(180deg, rgba(180,150,70,.78), rgba(140,115,50,.78));}
+
+  .badge{
+    position:absolute; right:8px; bottom:8px;
+    font-size:11px; font-weight:800; padding:4px 8px; border-radius:999px;
+    background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.14); color:#fff;
+  }
+  .place{
+    position:absolute; width:32px; height:32px; border-radius:999px;
+    display:flex; align-items:center; justify-content:center; font-size:16px;
+    background:rgba(20,24,32,.9); border:1px solid rgba(255,255,255,.14);
+    cursor:pointer;
+  }
+  .key{
+    width:150px; background:linear-gradient(180deg,rgba(20,24,32,.95),rgba(16,20,27,.95));
+    border:1px solid rgba(39,48,65,.9); border-radius:16px; padding:12px;
+  }
+  .key h4{margin:0 0 10px; font-size:13px; letter-spacing:.5px; color:var(--muted)}
+  .key .it{display:flex; gap:8px; align-items:center; margin:8px 0; font-size:12px}
+  .dot{width:22px; height:22px; border-radius:999px; display:flex; align-items:center; justify-content:center;
+       border:1px solid rgba(255,255,255,.14); background:rgba(0,0,0,.25)}
+
+  .list .row{padding:10px 0; border-bottom:1px solid rgba(39,48,65,.55)}
+  .list .row:last-child{border-bottom:none}
+  .priceUp{color:var(--good); font-weight:800}
+  .priceDn{color:var(--bad); font-weight:800}
+  .muted{color:var(--muted)}
+  .footerNav{
+    position:sticky; bottom:0; padding-top:12px;
+    background:linear-gradient(180deg, rgba(11,13,16,0), rgba(11,13,16,.92) 25%, rgba(11,13,16,.98));
+  }
+  .tabs{display:flex; gap:8px;}
+  .tab{flex:1; text-align:center; padding:10px 8px; border-radius:14px;
+       border:1px solid rgba(39,48,65,.8); background:rgba(20,24,32,.85);
+       font-weight:800; font-size:12px; cursor:pointer}
+  .tab.active{border-color:rgba(247,201,72,.85)}
+  .toast{margin-top:10px; color:var(--muted); font-size:12px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="row">
+      <div>
+        <div class="title">Farm Empire Tycoon</div>
+        <div class="sub" id="newsLine">☀️ Good weather • Prices change daily</div>
+      </div>
+      <div class="pill">
+        <div>
+          <small>Cash</small>
+          <b id="money">₹1,00,000</b>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:10px" class="kpi">
+      <div class="pill"><div><small>Day</small><b id="day">1</b></div></div>
+      <div class="pill"><div><small>Time</small><b id="time">06:00 AM</b></div></div>
+      <div class="pill"><div><small>Selected</small><b id="selected">—</b></div></div>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div class="screen active" id="home">
+    <div class="card">
+      <div class="grid">
+        <div class="btn primary" onclick="go('map')"><span>🗺️ Map</span><b>Open</b></div>
+        <div class="btn" onclick="go('market')"><span>📈 Crop Market</span><span class="muted">Daily</span></div>
+        <div class="btn" onclick="go('shop')"><span>🛒 Shop</span><span class="muted">Vehicles & Tools</span></div>
+        <div class="btn" onclick="go('challenges')"><span>🎯 Challenges</span><span class="muted">Rescue & Tasks</span></div>
+        <div class="btn ghost" onclick="nextDay()"><span>⏭️ Next Day</span><span class="muted">Refresh prices</span></div>
+      </div>
+      <div class="toast">Tip: Tap a field → buy land → plant → water → harvest → sell.</div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div class="screen" id="map">
+    <div class="mapWrap">
+      <div class="map card" style="padding:0">
+        <div class="river"></div>
+        <div class="road"></div>
+
+        <!-- Places (icons) -->
+        <div class="place" style="left:8%; top:12%" onclick="openPlace('Vehicle Shop 🚜')">🚜</div>
+        <div class="place" style="left:20%; top:58%" onclick="openPlace('Washing Center 🧽')">🧽</div>
+        <div class="place" style="left:66%; top:60%" onclick="openPlace('Seed Shop 🌱')">🌱</div>
+        <div class="place" style="left:78%; top:46%" onclick="openPlace('Livestock Market 🐄')">🐄</div>
+        <div class="place" style="left:54%; top:70%" onclick="openPlace('Sell Point 💰')">💰</div>
+        <div class="place" style="left:40%; top:42%" onclick="openPlace('My Farm 🏠')">🏠</div>
+        <div class="place" style="left:12%; top:72%" onclick="openPlace('Fuel Station ⛽')">⛽</div>
+
+        <!-- Fields (1–42) -->
+        <div class="field owned"  style="left:6%;  top:18%; width:18%; height:18%" onclick="tapField(1)">1<div class="badge">Owned</div></div>
+        <div class="field forSale" style="left:26%; top:18%; width:14%; height:10%" onclick="tapField(2)">2<div class="badge">₹45k</div></div>
+        <div class="field forSale" style="left:41%; top:18%; width:18%; height:10%" onclick="tapField(3)">3<div class="badge">₹45k</div></div>
+        <div class="field forSale" style="left:61%; top:18%; width:16%; height:12%" onclick="tapField(4)">4<div class="badge">₹60k</div></div>
+        <div class="field forSale" style="left:79%; top:18%; width:15%; height:12%" onclick="tapField(5)">5<div class="badge">₹60k</div></div>
+
+        <div class="field forSale" style="left:60%; top:32%; width:16%; height:16%" onclick="tapField(6)">6<div class="badge">₹55k</div></div>
+        <div class="field forSale" style="left:78%; top:34%; width:16%; height:14%" onclick="tapField(7)">7<div class="badge">₹55k</div></div>
+        <div class="field forSale" style="left:26%; top:30%; width:16%; height:10%" onclick="tapField(8)">8<div class="badge">₹40k</div></div>
+        <div class="field forSale" style="left:6%;  top:38%; width:20%; height:12%" onclick="tapField(9)">9<div class="badge">₹40k</div></div>
+
+        <div class="field forSale" style="left:6%;  top:52%; width:18%; height:12%" onclick="tapField(10)">10<div class="badge">₹35k</div></div>
+        <div class="field forSale" style="left:6%;  top:66%; width:10%; height:10%" onclick="tapField(11)">11<div class="badge">₹30k</div></div>
+        <div class="field forSale" style="left:17%; top:66%; width:10%; height:10%" onclick="tapField(12)">12<div class="badge">₹30k</div></div>
+        <div class="field forSale" style="left:28%; top:50%; width:12%; height:10%" onclick="tapField(13)">13<div class="badge">₹35k</div></div>
+        <div class="field forSale" style="left:28%; top:62%; width:14%; height:10%" onclick="tapField(14)">14<div class="badge">₹35k</div></div>
+        <div class="field forSale" style="left:44%; top:60%; width:8%; height:8%"  onclick="tapField(15)">15<div class="badge">₹30k</div></div>
+        <div class="field forSale" style="left:53%; top:60%; width:8%; height:8%"  onclick="tapField(16)">16<div class="badge">₹30k</div></div>
+
+        <div class="field forSale" style="left:46%; top:50%; width:14%; height:9%" onclick="tapField(17)">17<div class="badge">₹40k</div></div>
+        <div class="field forSale" style="left:61%; top:50%; width:10%; height:9%" onclick="tapField(18)">18<div class="badge">₹38k</div></div>
+        <div class="field forSale" style="left:72%; top:50%; width:10%; height:9%" onclick="tapField(19)">19<div class="badge">₹38k</div></div>
+
+        <div class="field forSale" style="left:61%; top:60%; width:12%; height:9%" onclick="tapField(20)">20<div class="badge">₹40k</div></div>
+        <div class="field forSale" style="left:74%; top:60%; width:10%; height:9%" onclick="tapField(21)">21<div class="badge">₹40k</div></div>
+        <div class="field forSale" style="left:86%; top:52%; width:10%; height:16%" onclick="tapField(22)">22<div class="badge">₹45k</div></div>
+        <div class="field forSale" style="left:86%; top:70%; width:10%; height:12%" onclick="tapField(23)">23<div class="badge">₹45k</div></div>
+
+        <div class="field forSale" style="left:24%; top:76%; width:18%; height:10%" onclick="tapField(24)">24<div class="badge">₹30k</div></div>
+        <div class="field forSale" style="left:10%; top:82%; width:12%; height:10%" onclick="tapField(25)">25<div class="badge">₹28k</div></div>
+        <div class="field forSale" style="left:44%; top:74%; width:14%; height:10%" onclick="tapField(26)">26<div class="badge">₹30k</div></div>
+        <div class="field forSale" style="left:59%; top:74%; width:14%; height:10%" onclick="tapField(27)">27<div class="badge">₹30k</div></div>
+        <div class="field forSale" style="left:44%; top:86%; width:14%; height:9%"  onclick="tapField(28)">28<div class="badge">₹28k</div></div>
+        <div class="field forSale" style="left:59%; top:86%; width:14%; height:9%"  onclick="tapField(29)">29<div class="badge">₹28k</div></div>
+
+        <div class="field forSale" style="left:74%; top:74%; width:12%; height:10%" onclick="tapField(30)">30<div class="badge">₹30k</div></div>
+        <div class="field forSale" style="left:86%; top:84%; width:10%; height:10%" onclick="tapField(31)">31<div class="badge">₹35k</div></div>
+
+        <div class="field forSale" style="left:74%; top:86%; width:12%; height:9%" onclick="tapField(33)">33<div class="badge">₹28k</div></div>
+        <div class="field forSale" style="left:74%; top:95%; width:12%; height:9%" onclick="tapField(34)">34<div class="badge">₹28k</div></div>
+
+        <div class="field forSale" style="left:26%; top:88%; width:16%; height:10%" onclick="tapField(35)">35<div class="badge">₹32k</div></div>
+        <div class="field forSale" style="left:10%; top:92%; width:14%; height:10%" onclick="tapField(36)">36<div class="badge">₹30k</div></div>
+        <div class="field forSale" style="left:6%;  top:82%; width:10%; height:10%" onclick="tapField(37)">37<div class="badge">₹25k</div></div>
+        <div class="field forSale" style="left:6%;  top:92%; width:10%; height:10%" onclick="tapField(38)">38<div class="badge">₹25k</div></div>
+
+        <!-- Keep remaining fields inside visible area by using the bottom right/center -->
+        <div class="field forSale" style="left:86%; top:94%; width:10%; height:9%" onclick="tapField(32)">32<div class="badge">₹35k</div></div>
+        <div class="field forSale" style="left:26%; top:100%; width:34%; height:10%" onclick="tapField(40)">40<div class="badge">₹40k</div></div>
+        <div class="field forSale" style="left:62%; top:104%; width:18%; height:8%"  onclick="tapField(41)">41<div class="badge">₹30k</div></div>
+        <div class="field forSale" style="left:26%; top:112%; width:34%; height:8%" onclick="tapField(42)">42<div class="badge">₹45k</div></div>
+
+        <!-- 30–42 extra compact cluster to keep 42 tappable -->
+        <div class="field forSale" style="left:86%; top:104%; width:10%; height:8%" onclick="tapField(39)">39<div class="badge">₹25k</div></div>
+      </div>
+
+      <div class="key">
+        <h4>KEY SPOTS</h4>
+        <div class="it"><span class="dot">🚜</span><span>Vehicle Shop</span></div>
+        <div class="it"><span class="dot">🧽</span><span>Washing Center</span></div>
+        <div class="it"><span class="dot">🌱</span><span>Seed Shop</span></div>
+        <div class="it"><span class="dot">🐄</span><span>Livestock Market</span></div>
+        <div class="it"><span class="dot">💰</span><span>Sell Point</span></div>
+        <div class="it"><span class="dot">🏠</span><span>My Farm</span></div>
+        <div class="it"><span class="dot">⛽</span><span>Fuel Station</span></div>
+        <div class="btn ghost" onclick="go('home')">⬅️ Back</div>
+      </div>
+    </div>
+
+    <div class="toast">Scroll inside map if needed. Tap any field number (1–42).</div>
+  </div>
+
+  <!-- FIELD DETAIL -->
+  <div class="screen" id="field">
+    <div class="card">
+      <div class="row">
+        <div>
+          <div class="title" id="fieldTitle">Field</div>
+          <div class="sub" id="fieldSub">—</div>
+        </div>
+        <div class="pill"><div><small>Status</small><b id="fieldStatus">—</b></div></div>
+      </div>
+
+      <div style="margin-top:12px" class="grid" id="fieldActions"></div>
+
+      <div style="margin-top:10px" class="toast" id="fieldHint"></div>
+      <div style="margin-top:12px" class="btn ghost" onclick="go('map')">⬅️ Back to Map</div>
+    </div>
+  </div>
+
+  <!-- MARKET -->
+  <div class="screen" id="market">
+    <div class="card">
+      <div class="row">
+        <div>
+          <div class="title">📈 Crop Market</div>
+          <div class="sub">Prices change daily (tap Next Day)</div>
+        </div>
+        <div class="btn ghost" style="padding:10px 12px" onclick="nextDay()">⏭️ Next Day</div>
+      </div>
+
+      <div class="list" style="margin-top:10px" id="marketList"></div>
+
+      <div style="margin-top:12px" class="btn ghost" onclick="go('home')">⬅️ Back</div>
+    </div>
+  </div>
+
+  <!-- SHOP -->
+  <div class="screen" id="shop">
+    <div class="card">
+      <div class="title">🛒 Shop</div>
+      <div class="sub">Clean & simple. Buy vehicles/equipment.</div>
+
+      <div style="margin-top:12px" class="grid">
+        <div class="btn" onclick="go('vehicles')"><span>🚙 Vehicles</span><span class="muted">Hilux/4x4</span></div>
+        <div class="btn" onclick="buyEquipment('Sprinklers', 80000)"><span>💧 Sprinklers</span><b>₹80,000</b></div>
+        <div class="btn" onclick="buyEquipment('Seeder', 55000)"><span>🌱 Seeder</span><b>₹55,000</b></div>
+        <div class="btn" onclick="buyEquipment('Harvester', 380000)"><span>🌾 Harvester</span><b>₹3,80,000</b></div>
+      </div>
+
+      <div style="margin-top:12px" class="btn ghost" onclick="go('home')">⬅️ Back</div>
+    </div>
+  </div>
+
+  <!-- VEHICLES -->
+  <div class="screen" id="vehicles">
+    <div class="card">
+      <div class="title">🚙 Vehicle Shop</div>
+      <div class="sub">Use for delivery + towing + rescue.</div>
+
+      <div style="margin-top:12px" class="list" id="vehicleList"></div>
+
+      <div style="margin-top:12px" class="btn ghost" onclick="go('shop')">⬅️ Back</div>
+    </div>
+  </div>
+
+  <!-- CHALLENGES -->
+  <div class="screen" id="challenges">
+    <div class="card">
+      <div class="title">🎯 Challenges</div>
+      <div class="sub">Realistic events. Tap to start.</div>
+
+      <div style="margin-top:12px" class="grid">
+        <div class="btn" onclick="startStuckChallenge()"><span>🟫 Tractor stuck in mud</span><span class="muted">Rescue</span></div>
+        <div class="btn" onclick="go('washing')"><span>🧽 Wash your vehicle</span><span class="muted">Clean boost</span></div>
+        <div class="btn" onclick="go('livestock')"><span>🐄 Buy livestock</span><span class="muted">Milk/Eggs</span></div>
+      </div>
+
+      <div style="margin-top:12px" class="btn ghost" onclick="go('home')">⬅️ Back</div>
+    </div>
+  </div>
+
+  <!-- WASHING -->
+  <div class="screen" id="washing">
+    <div class="card">
+      <div class="title">🧽 Washing Center</div>
+      <div class="sub">Keep tractors/pickups clean.</div>
+      <div style="margin-top:12px" class="grid">
+        <div class="btn" onclick="pay(5000,'Washed vehicle ✅'); go('challenges')"><span>Quick Wash</span><b>₹5,000</b></div>
+        <div class="btn" onclick="pay(12000,'Deep Wash + Polish ✅'); go('challenges')"><span>Deep Wash</span><b>₹12,000</b></div>
+      </div>
+      <div style="margin-top:12px" class="btn ghost" onclick="go('challenges')">⬅️ Back</div>
+    </div>
+  </div>
+
+  <!-- LIVESTOCK -->
+  <div class="screen" id="livestock">
+    <div class="card">
+      <div class="title">🐄 Livestock Market</div>
+      <div class="sub">Buy animals for daily income.</div>
+
+      <div style="margin-top:12px" class="grid">
+        <div class="btn" onclick="buyAnimal('Cow', 40000)"><span>🐄 Cow</span><b>₹40,000</b></div>
+        <div class="btn" onclick="buyAnimal('Chicken', 3000)"><span>🐓 Chicken</span><b>₹3,000</b></div>
+        <div class="btn" onclick="buyAnimal('Goat', 12000)"><span>🐐 Goat</span><b>₹12,000</b></div>
+      </div>
+
+      <div style="margin-top:12px" class="toast" id="animalOwned">Owned: —</div>
+      <div style="margin-top:12px" class="btn ghost" onclick="go('challenges')">⬅️ Back</div>
+    </div>
+  </div>
+
+  <!-- STUCK CHALLENGE -->
+  <div class="screen" id="stuck">
+    <div class="card">
+      <div class="title">🟫 Tractor Stuck!</div>
+      <div class="sub">Use towing vehicle or pay recovery.</div>
+      <div style="margin-top:12px" class="grid" id="stuckActions"></div>
+      <div style="margin-top:12px" class="btn ghost" onclick="go('challenges')">⬅️ Back</div>
+    </div>
+  </div>
+
+  <div class="footerNav">
+    <div class="tabs">
+      <div class="tab active" id="tHome" onclick="go('home')">🏠 Home</div>
+      <div class="tab" id="tMap" onclick="go('map')">🗺️ Map</div>
+      <div class="tab" id="tMarket" onclick="go('market')">📈 Market</div>
+      <div class="tab" id="tShop" onclick="go('shop')">🛒 Shop</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let money = 100000;
+  let day = 1;
+  let time = "06:00 AM";
+  let selected = "—";
+
+  // 42 Fields generated, Field 1 owned
+  const fields = {};
+  for (let i=1; i<=42; i++){
+    let price = 30000;
+    if (i<=5) price = 60000;
+    else if (i<=10) price = 45000;
+    else if (i<=23) price = 35000;
+    else if (i<=34) price = 30000;
+    else price = 28000;
+
+    fields[i] = {id:i, status:"For Sale", price, state:"forSale", crop:null, growth:0};
+  }
+  fields[1].price = 0;
+  fields[1].state = "owned";
+  fields[1].status = "Owned";
+
+  let currentField = null;
+
+  const crops = [
+    {k:"Wheat", e:"🌾", min:18, max:32},
+    {k:"Rice", e:"🍚", min:25, max:45},
+    {k:"Corn", e:"🌽", min:22, max:40},
+    {k:"Tomato", e:"🍅", min:10, max:30},
+    {k:"Onion", e:"🧅", min:15, max:35},
+    {k:"Potato", e:"🥔", min:12, max:28},
+    {k:"Garlic", e:"🧄", min:30, max:70},
+    {k:"Chili", e:"🌶️", min:40, max:95},
+  ];
+  let prices = {};
+  let prevPrices = {};
+
+  let vehiclesOwned = [{name:"Starter Tractor", type:"tractor", tow:false}];
+  const vehicleShop = [
+    {name:"Mahindra 575 DI", price:210000, type:"tractor", tow:false},
+    {name:"John Deere 5036D", price:450000, type:"tractor", tow:true},
+    {name:"New Holland 3630", price:510000, type:"tractor", tow:true},
+    {name:"Hilux 4x4 (Pickup)", price:390000, type:"pickup", tow:true},
+    {name:"Thar 4x4", price:450000, type:"suv", tow:true}
+  ];
+
+  const animals = { Cow:0, Chicken:0, Goat:0 };
+
+  function fmtINR(n){
+    const s = String(n);
+    let last3 = s.slice(-3), rest = s.slice(0,-3);
+    if(rest !== "") last3 = "," + last3;
+    const restFormatted = rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",");
+    return "₹" + restFormatted + last3;
+  }
+
+  function setTop(){
+    document.getElementById("money").textContent = fmtINR(money);
+    document.getElementById("day").textContent = day;
+    document.getElementById("time").textContent = time;
+    document.getElementById("selected").textContent = selected;
+  }
+
+  function go(id){
+    document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    if(id==="home") document.getElementById("tHome").classList.add("active");
+    if(id==="map") document.getElementById("tMap").classList.add("active");
+    if(id==="market") document.getElementById("tMarket").classList.add("active");
+    if(id==="shop"||id==="vehicles") document.getElementById("tShop").classList.add("active");
+
+    if(id==="market") renderMarket();
+    if(id==="vehicles") renderVehicles();
+    if(id==="livestock") renderAnimalsOwned();
+    setTop();
+  }
+
+  function openPlace(name){
+    selected = name;
+    setTop();
+    if(name.includes("Seed Shop")) go("shop");
+    else if(name.includes("Livestock")) go("livestock");
+    else if(name.includes("Washing")) go("washing");
+    else if(name.includes("Vehicle")) go("vehicles");
+    else if(name.includes("Sell")) go("market");
+    else go("home");
+  }
+
+  function tapField(n){
+    currentField = fields[n];
+    selected = "Field " + n;
+    renderField();
+    go("field");
+  }
+
+  function renderField(){
+    const f = currentField;
+    document.getElementById("fieldTitle").textContent = "Field " + f.id;
+    document.getElementById("fieldStatus").textContent = f.state.toUpperCase();
+
+    let sub = "";
+    if(f.state==="forSale") sub = "Available • Price " + fmtINR(f.price);
+    if(f.state==="owned") sub = "Owned • Ready for work";
+    if(f.state==="planted") sub = `Planted ${f.crop} • Growth ${Math.round(f.growth*100)}%`;
+    if(f.state==="ready") sub = `Ready to Harvest ${f.crop} ✅`;
+    document.getElementById("fieldSub").textContent = sub;
+
+    const actions = [];
+    if(f.state==="forSale"){
+      actions.push(`<div class="btn primary" onclick="buyLand()"><span>✅ Buy Land</span><b>${fmtINR(f.price)}</b></div>`);
+    } else if(f.state==="owned"){
+      actions.push(`<div class="btn" onclick="pickCrop()"><span>🌱 Plant Crop</span><span class="muted">Seeds needed</span></div>`);
+    } else if(f.state==="planted"){
+      actions.push(`<div class="btn" onclick="waterField()"><span>💧 Water</span><span class="muted">+30% growth</span></div>`);
+      actions.push(`<div class="btn ghost" onclick="advanceGrowth()"><span>⏳ Wait</span><span class="muted">+10% growth</span></div>`);
+    } else if(f.state==="ready"){
+      actions.push(`<div class="btn" onclick="harvestField()"><span>🌾 Harvest</span><span class="muted">Sell instantly</span></div>`);
+    }
+
+    document.getElementById("fieldActions").innerHTML = actions.join("");
+    document.getElementById("fieldHint").textContent =
+      "Every tap opens a new screen. Use Next Day to refresh market rates.";
+  }
+
+  function buyLand(){
+    const f = currentField;
+    if(money < f.price){ alert("Not enough money"); return; }
+    money -= f.price;
+    f.state = "owned";
+    f.status = "Owned";
+    renderField();
+    setTop();
+  }
+
+  function pickCrop(){
+    const pick = prompt("Type crop: Wheat/Rice/Corn/Tomato/Onion/Potato/Garlic/Chili", "Wheat");
+    if(!pick) return;
+    currentField.crop = pick;
+    currentField.state = "planted";
+    currentField.growth = 0.2;
+    renderField();
+  }
+
+  function waterField(){
+    currentField.growth = Math.min(1, currentField.growth + 0.30);
+    if(currentField.growth >= 1) currentField.state = "ready";
+    renderField();
+  }
+
+  function advanceGrowth(){
+    currentField.growth = Math.min(1, currentField.growth + 0.10);
+    if(currentField.growth >= 1) currentField.state = "ready";
+    renderField();
+  }
+
+  function harvestField(){
+    const crop = currentField.crop || "Wheat";
+    const p = prices[crop] || 25;
+    const units = 120;
+    const earned = units * p;
+    money += earned;
+
+    currentField.crop = null;
+    currentField.growth = 0;
+    currentField.state = "owned";
+
+    alert(`Harvested ${units} ${crop}. Sold for ${fmtINR(earned)} ✅`);
+    renderField();
+    setTop();
+  }
+
+  function refreshPrices(){
+    prevPrices = {...prices};
+    prices = {};
+    crops.forEach(c=>{
+      const v = Math.floor(c.min + Math.random()*(c.max-c.min+1));
+      prices[c.k] = v;
+    });
+  }
+
+  function renderMarket(){
+    const el = document.getElementById("marketList");
+    el.innerHTML = crops.map(c=>{
+      const now = prices[c.k];
+      const prev = prevPrices[c.k] ?? now;
+      const diff = now - prev;
+      const arrow = diff>=0 ? "▲" : "▼";
+      const cls = diff>=0 ? "priceUp" : "priceDn";
+      return `
+        <div class="row">
+          <div><b>${c.e} ${c.k}</b><div class="muted" style="font-size:11px">per unit</div></div>
+          <div style="text-align:right">
+            <div><b>${fmtINR(now).replace("₹","₹ ")}</b> <span class="${cls}" style="font-size:12px">${arrow}</span></div>
+            <div class="muted" style="font-size:11px">${diff===0?"no change":(diff>0?("+"+diff):diff)} vs yesterday</div>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  function renderVehicles(){
+    const el = document.getElementById("vehicleList");
+    el.innerHTML = vehicleShop.map(v=>{
+      return `
+        <div class="row">
+          <div>
+            <b>${v.type==="pickup"?"🚙":"🚜"} ${v.name}</b>
+            <div class="muted" style="font-size:11px">${v.tow?"Towing ✅":"Basic"}</div>
+          </div>
+          <div class="btn" style="padding:10px 12px" onclick="buyVehicle('${v.name}',${v.price},${v.tow})">
+            <span>Buy</span><b>${fmtINR(v.price)}</b>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  function buyVehicle(name, price, tow){
+    if(money < price){ alert("Not enough money"); return; }
+    money -= price;
+    vehiclesOwned.push({name, tow: !!tow});
+    alert(`Purchased ${name} ✅`);
+    setTop();
+  }
+
+  function buyEquipment(name, price){
+    if(money < price){ alert("Not enough money"); return; }
+    money -= price;
+    alert(`Bought ${name} ✅`);
+    setTop();
+    go("shop");
+  }
+
+  function buyAnimal(type, price){
+    if(money < price){ alert("Not enough money"); return; }
+    money -= price;
+    animals[type] += 1;
+    renderAnimalsOwned();
+    setTop();
+  }
+
+  function renderAnimalsOwned(){
+    document.getElementById("animalOwned").textContent =
+      `Owned: 🐄 ${animals.Cow}  🐓 ${animals.Chicken}  🐐 ${animals.Goat}`;
+  }
+
+  function startStuckChallenge(){
+    selected = "Challenge: Stuck Tractor";
+    setTop();
+    const hasTow = vehiclesOwned.some(v=>v.tow);
+    const actions = [];
+    if(hasTow){
+      actions.push(`<div class="btn primary" onclick="resolveStuck(true)"><span>🪝 Tow it out (use 4x4/tractor)</span><b>Free</b></div>`);
+    } else {
+      actions.push(`<div class="btn" onclick="resolveStuck(false)"><span>🪝 Tow it out</span><span class="muted">Need towing vehicle</span></div>`);
+    }
+    actions.push(`<div class="btn" onclick="pay(15000,'Recovery team pulled it out ✅'); go('challenges')"><span>🚚 Call Recovery</span><b>₹15,000</b></div>`);
+    actions.push(`<div class="btn ghost" onclick="go('vehicles')"><span>🚙 Buy towing vehicle</span><span class="muted">Hilux/4x4</span></div>`);
+    document.getElementById("stuckActions").innerHTML = actions.join("");
+    go("stuck");
+  }
+
+  function resolveStuck(ok){
+    if(!ok){ alert("You need a towing vehicle (4x4 / tow-capable tractor)."); return; }
+    alert("Rescued tractor ✅ Back to work!");
+    go("challenges");
+  }
+
+  function pay(amount, msg){
+    if(money < amount){ alert("Not enough money"); return; }
+    money -= amount;
+    alert(msg);
+    setTop();
+  }
+
+  function nextDay(){
+    day += 1;
+    time = "06:00 AM";
+    const milk = animals.Cow * 50;
+    const eggs = animals.Chicken * 10;
+    const goatMilk = animals.Goat * 8;
+    const income = (milk*10) + (eggs*3) + (goatMilk*12);
+    money += income;
+
+    const news = [
+      "☀️ Good weather • +10% growth today",
+      "🌧️ Rain • Free watering on all fields",
+      "🧅 Onion demand high • Prices may rise",
+      "🍅 Tomato supply high • Prices may drop",
+      "🚜 Fuel prices stable • Plan deliveries"
+    ];
+    document.getElementById("newsLine").textContent = news[Math.floor(Math.random()*news.length)];
+
+    refreshPrices();
+    setTop();
+    if(document.getElementById("market").classList.contains("active")) renderMarket();
+    alert(`Day ${day} started. Animal income: ${fmtINR(income)} ✅`);
+  }
+
+  refreshPrices();
+  setTop();
+  renderMarket();
+  renderVehicles();
+  renderAnimalsOwned();
+</script>
+</body>
+</html>
